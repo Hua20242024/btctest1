@@ -1,9 +1,9 @@
 import streamlit as st
-from data_loader import BTCLoader
-from strategy import BTCStrategy
-from visualizations import BTCVisualizations
 import pandas as pd
-
+# Update these 3 lines:
+from btctrading.dataloader import BTCLoader
+from btctrading.strategy import BTCStrategy
+from btctrading.visuals import BTCVisualizations
 # Page configuration
 st.set_page_config(
     page_title="BTC Trading Signals",
