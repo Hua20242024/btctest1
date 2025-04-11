@@ -1,8 +1,9 @@
 import streamlit as st
 import pandas as pd
-from btctesting.data_loader import BTCLoader
-from btctesting.strategy import BTCStrategy
-from btctesting.visualizations import BTCVisualizations  # Fixed to match filename
+# Simplified imports (no 'btctesting.' prefix):
+from data_loader import BTCLoader
+from strategy import BTCStrategy
+from visualizations import BTCVisualizations
 # Page configuration
 st.set_page_config(
     page_title="BTC Trading Signals",
