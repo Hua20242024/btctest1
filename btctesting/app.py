@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-# Simplified imports (no 'btctesting.' prefix):
 from data_loader import BTCLoader
 from strategy import BTCStrategy
 from visualizations import BTCVisualizations
