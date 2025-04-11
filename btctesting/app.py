@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 # Change these imports:
-from btctesting.dataloader import BTCLoader
+from btctesting.data_loader import BTCLoader  # Must match the underscore
 from btctesting.strategy import BTCStrategy
 from btctesting.visuals import BTCVisualizations
 # Page configuration
