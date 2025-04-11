@@ -3,7 +3,7 @@ import pandas as pd
 # Change these imports:
 from btctesting.data_loader import BTCLoader  # Must match the underscore
 from btctesting.strategy import BTCStrategy
-from btctesting.visuals import BTCVisualizations
+from btctesting.visualizations import BTCVisualizations
 # Page configuration
 st.set_page_config(
     page_title="BTC Trading Signals",
