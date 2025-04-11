@@ -1,7 +1,4 @@
 streamlit
-plotly
-python-binance
 pandas
-numpy
+python-binance
 ta
-python-dotenv
