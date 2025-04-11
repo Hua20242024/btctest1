@@ -1,78 +1,73 @@
 import pandas as pd
-from binance.client import Client
-from binance.exceptions import BinanceAPIException
+import requests
 import time
-import os
 import streamlit as st
+from datetime import datetime, timedelta
 
 class BTCLoader:
-    def __init__(self, use_mock_data=False):
-        self.use_mock_data = use_mock_data
-        self.client = self._init_client()
-    
-    def _init_client(self, retries=3):
-        """Initialize Binance client with retry logic"""
-        if self.use_mock_data:
-            return None
-            
-        for attempt in range(retries):
-            try:
-                return Client(
-                    api_key=os.getenv('BINANCE_API_KEY'),  # From Streamlit secrets
-                    api_secret=os.getenv('BINANCE_API_SECRET')
-                )
-            except BinanceAPIException as e:
-                if attempt == retries - 1:
-                    st.error(f"Binance API failed after {retries} attempts: {str(e)}")
-                    return None
-                time.sleep(2 ** attempt)  # Exponential backoff
-
-    def get_historical_data(self, timeframe='1h', limit=100):
-        """Fetch data with fallback to mock data"""
-        if self.use_mock_data or not self.client:
-            return self._get_mock_data(limit)
-            
+    def __init__(self):
+        self.base_url = "https://api.coingecko.com/api/v3"
+        
+    def get_historical_data(self, days=30):
+        """Fetch BTC/USD data from CoinGecko"""
         try:
-            klines = self.client.get_klines(
-                symbol="BTCUSDT",
-                interval=timeframe,
-                limit=limit
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=days)
+            
+            params = {
+                'vs_currency': 'usd',
+                'days': days,
+                'interval': 'daily'
+            }
+            
+            response = requests.get(
+                f"{self.base_url}/coins/bitcoin/market_chart",
+                params=params,
+                timeout=10
             )
-            return self._process_data(klines)
+            response.raise_for_status()
+            
+            data = response.json()
+            prices = data['prices']
+            
+            df = pd.DataFrame(prices, columns=['timestamp', 'price'])
+            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            df.set_index('timestamp', inplace=True)
+            
+            # Resample to hourly and forward fill
+            df = df.resample('1H').ffill()
+            
+            # Simulate OHLCV from price data
+            df['open'] = df['price'].shift(1)
+            df['high'] = df[['open', 'price']].max(axis=1)
+            df['low'] = df[['open', 'price']].min(axis=1)
+            df['close'] = df['price']
+            df['volume'] = 1000  # Placeholder
+            
+            return df[['open', 'high', 'low', 'close', 'volume']].dropna()
+            
         except Exception as e:
-            st.warning(f"Using mock data (API failed: {str(e)})")
-            return self._get_mock_data(limit)
+            st.error(f"API Error: {str(e)}")
+            return self._get_mock_data(days)
 
-    def _process_data(self, klines):
-        """Convert Binance API response to DataFrame"""
-        df = pd.DataFrame(klines, columns=[
-            "timestamp", "open", "high", "low", "close", "volume",
-            "close_time", "quote_asset_volume", "trades",
-            "taker_buy_base", "taker_buy_quote", "ignore"
-        ])
-        
-        # Convert columns
-        numeric_cols = ["open", "high", "low", "close", "volume"]
-        df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric)
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-        
-        return df[["timestamp", "open", "high", "low", "close", "volume"]]
-
-    def _get_mock_data(self, limit):
+    def _get_mock_data(self, days):
         """Generate realistic mock data"""
-        dates = pd.date_range(end=pd.Timestamp.now(), periods=limit, freq='H')
-        prices = [40000 + i*100 + (i%10)*500 for i in range(limit)]  # Volatility pattern
-        return pd.DataFrame({
+        periods = days * 24  # Hours
+        dates = pd.date_range(end=pd.Timestamp.now(), periods=periods, freq='H')
+        base_prices = [40000 + i*10 for i in range(periods)]
+        volatility = [300 * (i % 24 - 12)/12 for i in range(periods)]  # Daily cycle
+        
+        df = pd.DataFrame({
             'timestamp': dates,
-            'open': prices,
-            'high': [p + 200 for p in prices],
-            'low': [p - 200 for p in prices],
-            'close': [p + 50 for p in prices],
-            'volume': [1000 + i*50 for i in range(limit)]
+            'open': base_prices,
+            'high': [p + abs(v) + 200 for p,v in zip(base_prices, volatility)],
+            'low': [p - abs(v) - 200 for p,v in zip(base_prices, volatility)],
+            'close': [p + v for p,v in zip(base_prices, volatility)],
+            'volume': [1000 + i%24*500 for i in range(periods)]  # Daily pattern
         })
+        return df.set_index('timestamp')
 
-# Example usage:
+# Example usage
 if __name__ == "__main__":
-    loader = BTCLoader(use_mock_data=True)  # Set False for real data
-    data = loader.get_historical_data()
-    print(data.head())
+    loader = BTCLoader()
+    print(loader.get_historical_data(7).tail())  # 7 days data
